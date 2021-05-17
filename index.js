@@ -1,6 +1,6 @@
 "use strict"
 
-//forge.options.usePureJavaScript = true;
+forge.options.usePureJavaScript = true;
 
 $(function() {
 	let location = Server.location();

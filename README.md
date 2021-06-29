@@ -2,4 +2,4 @@
 
 	cd nope
 	git clone git@github.com:davidfauthoux/nope-book.git book
-	http://<ip>:<port>/book/superuser/?clear
+	node -r esm book/book.js '--base=http://localhost:8086' '--password=...' '--email=david.fauthoux@gmail.com'

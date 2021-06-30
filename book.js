@@ -24,7 +24,7 @@ console.log("Server.BASE", Server.BASE);
 console.log("password", password);
 console.log("superviseEmail", superviseEmail);
 
-let TIMEOUT = 5 * 60;
+let TIMEOUT = 30 * 60;
 
 let globalUserId = "users/book/superuser";
 

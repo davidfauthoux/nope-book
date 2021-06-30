@@ -104,7 +104,7 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 					password: mailData.password,
 					to: helpedUser,
 					subject: (emailHtml === undefined) ? "" : emailHtml.subject,
-					text: (emailHtml === undefined) ? url : emailHtml.text.replaceAll("{url}", url)
+					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
 				});
 			} else {
 				console.log("EMAILING TO (SUPERVISE)", superviseEmail);
@@ -115,7 +115,7 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 					password: mailData.password,
 					to: superviseEmail,
 					subject: "SUPERVISE / " + ((emailHtml === undefined) ? "" : emailHtml.subject),
-					text: (emailHtml === undefined) ? url : emailHtml.text.replaceAll("{url}", url)
+					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
 				});
 			}
 		},

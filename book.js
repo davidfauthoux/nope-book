@@ -232,7 +232,8 @@ async.run([
 						};
 					}
 					if (event.validate !== undefined) {
-					}		
+						// Nothing to do
+					}
 				}								
 				if (helpOldEvents) {
 					console.log("WILL HELP", willHelp);

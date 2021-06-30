@@ -1,9 +1,8 @@
 //npm install esm
 //node -r esm <file>.js
-"use strict"
 
-import * as async from "../modules/async-ext.js";
-import { Server, now, history } from "../modules/server-ext.js";
+import * as async from "../modules/async.js";
+import { Server, now, history } from "../modules/server.js";
 import { EncryptionServer } from "../modules/encryption.js";
 
 let args = {};
@@ -27,7 +26,7 @@ console.log("superviseEmail", superviseEmail);
 
 let TIMEOUT = 5 * 60;
 
-let globalUserId = "book/superuser";
+let globalUserId = "users/book/superuser";
 
 let mailData = {
 	host: "ssl0.ovh.net", //"smtp.gmail.com",
@@ -46,7 +45,7 @@ let encryptionServer = new EncryptionServer();
 let knownUsers = {};
 let helping = {};
 
-let helpUser = function(userId, emailHtml, language, supervise) {
+let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 	console.log("HELPING USER", userId, supervise)
 	let knownHash = knownUsers[userId];
 	if (knownHash === undefined) {
@@ -89,7 +88,7 @@ let helpUser = function(userId, emailHtml, language, supervise) {
 				temp: temp
 			};
 
-			let url = Server.BASE + "/" + userId.substring(0, userId.indexOf('/')) + "/?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId) + "&language=" + encodeURIComponent(language);
+			let url = Server.BASE + "/" + urlBase + "?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId) + "&language=" + encodeURIComponent(language);
 			if (supervise) {
 				url += "&supervise=" + encodeURIComponent("");
 			}
@@ -239,7 +238,7 @@ async.run([
 					console.log("WILL HELP", willHelp);
 					for (let willHelpUserId in willHelp) {
 						let w = willHelp[willHelpUserId];
-						seq.push(helpUser(willHelpUserId, w.html, w.language, w.supervise === true));
+						seq.push(helpUser(willHelpUserId, w.base, w.html, w.language, w.supervise === true));
 					}
 				}
 				return async.sequence_(...seq);
@@ -259,7 +258,7 @@ async.run([
 			}
 
 			if (r.help !== undefined) {
-				return helpUser(r.help.id, r.help.html, r.help.language, r.help.supervise === true);
+				return helpUser(r.help.id, r.help.base, r.help.html, r.help.language, r.help.supervise === true);
 			}
 			
 			if (r.validate !== undefined) {

@@ -228,6 +228,7 @@ async.run([
 					if (event.help !== undefined) {
 						willHelp[event.help.id] = {
 							html: event.help.html,
+							base: event.help.base,
 							supervise: event.help.supervise
 						};
 					}

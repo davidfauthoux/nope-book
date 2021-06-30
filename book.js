@@ -93,6 +93,8 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 				url += "&supervise=" + encodeURIComponent("");
 			}
 
+			console.log("HELP", emailHtml, url);
+
 			if (!supervise) {
 				console.log("EMAILING TO", helpedUser);
 				return userServer.mail({

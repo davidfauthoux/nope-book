@@ -97,7 +97,7 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 
 			if (!supervise) {
 				console.log("EMAILING TO", helpedUser);
-				return userServer.mail({
+				return async.try_(userServer.mail({
 					host: mailData.host,
 					port: mailData.port,
 					user: mailData.user,
@@ -105,10 +105,12 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 					to: helpedUser,
 					subject: (emailHtml === undefined) ? "" : emailHtml.subject,
 					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
+				})).catch_((err) => {
+					console.log("MAIL ERROR", err);
 				});
 			} else {
 				console.log("EMAILING TO (SUPERVISE)", superviseEmail);
-				return userServer.mail({
+				return async.try_(userServer.mail({
 					host: mailData.host,
 					port: mailData.port,
 					user: mailData.user,
@@ -116,6 +118,8 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 					to: superviseEmail,
 					subject: "SUPERVISE / " + ((emailHtml === undefined) ? "" : emailHtml.subject),
 					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
+				})).catch_((err) => {
+					console.log("MAIL ERROR", err);
 				});
 			}
 		},

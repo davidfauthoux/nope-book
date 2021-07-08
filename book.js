@@ -224,14 +224,17 @@ async.run([
 				for (let event of r.old) {
 					console.log("-", event);
 					if (event.new !== undefined) {
+						event.new.id = event.new.id.toLowerCase(); //TODO Remove when everything upgraded
 						delete willHelp[event.new.id];
 						seq.push(newUser(event.new.id, event.new.hash));
 					}		
 					if (event.validated !== undefined) {
+						event.validated.id = event.validated.id.toLowerCase(); //TODO Remove when everything upgraded
 						delete willHelp[event.validated.id];
 						seq.push(validatedUser(event.validated.id, event.validated.hash));
 					}
 					if (event.help !== undefined) {
+						event.help.id = event.help.id.toLowerCase(); //TODO Remove when everything upgraded
 						willHelp[event.help.id] = {
 							html: event.help.html,
 							base: event.help.base,

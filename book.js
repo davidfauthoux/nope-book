@@ -196,7 +196,8 @@ async.run([
 	EncryptionServer.hash(exposePassword),
 	(hash) => exposePasswordHash = hash,
 	async.try_(new EncryptionServer().getPublicKey(globalUserId))
-		.catch_((_e) => {
+		.catch_((e) => {
+			console.log("Public key not found", globalUserId, e);
 			let vaultServer = new Server("/vault");
 			return async._([
 				encryptionServer.createNewUser(globalUserId, passwordHash, ""),

@@ -16,11 +16,13 @@ for (let a of process.argv) {
 	}
 }
 Server.BASE = args.base; // "http://localhost:8086";
+let urlRoot = args.url;
 let password = args.password;
 let exposePassword = password; //TODO
 let superviseEmail = args.email;
 
 console.log("Server.BASE", Server.BASE);
+console.log("root", urlRoot);
 console.log("password", password);
 console.log("superviseEmail", superviseEmail);
 
@@ -88,7 +90,7 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 				temp: temp
 			};
 
-			let url = Server.BASE + "/" + urlBase + "?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId) + "&language=" + encodeURIComponent(language);
+			let url = urlRoot + "/" + urlBase + "?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId) + "&language=" + encodeURIComponent(language);
 			if (supervise) {
 				url += "&supervise=" + encodeURIComponent("");
 			}

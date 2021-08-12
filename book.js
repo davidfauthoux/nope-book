@@ -47,7 +47,7 @@ let encryptionServer = new EncryptionServer();
 let knownUsers = {};
 let helping = {};
 
-let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
+let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 	console.log("HELPING USER", userId, supervise)
 	let knownHash = knownUsers[userId];
 	if (knownHash === undefined) {
@@ -90,9 +90,12 @@ let helpUser = function(userId, urlBase, emailHtml, language, supervise) {
 				temp: temp
 			};
 
-			let url = urlRoot + "/" + urlBase + "?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId) + "&language=" + encodeURIComponent(language);
+			let url = urlRoot + "/" + urlBase + "?" + encodeURIComponent("recover") + "=" + encodeURIComponent(temp) + "&" + encodeURIComponent("id") + "=" + encodeURIComponent(userId);
+			for (let paramKey in urlParameters) {
+				url += "&" + encodeURIComponent(paramKey) + "=" + encodeURIComponent(urlParameters[paramKey]);
+			}
 			if (supervise) {
-				url += "&supervise=" + encodeURIComponent("");
+				url += "&" + encodeURIComponent("supervise") + "=" + encodeURIComponent("");
 			}
 
 			console.log("HELP", emailHtml, url);
@@ -221,6 +224,18 @@ async.run([
 		(r) => {
 			console.log(r);
 
+			//TODO Deprecated, removed and replace with event.parameters
+			let convertDeprecated = function(event) {
+				let urlParameters = event.parameters;
+				if (urlParameters === undefined) { 
+					urlParameters = {};
+				}
+				if (event.language !== undefined) {
+					urlParameters.language = w.language;
+				}
+				return urlParameters;
+			};
+
 			if (r.old !== undefined) {
 				let seq = [];
 				let willHelp = {};
@@ -241,7 +256,8 @@ async.run([
 						willHelp[event.help.id] = {
 							html: event.help.html,
 							base: event.help.base,
-							supervise: event.help.supervise
+							supervise: event.help.supervise,
+							parameters: convertDeprecated(event.help)
 						};
 					}
 					if (event.validate !== undefined) {
@@ -252,7 +268,7 @@ async.run([
 					console.log("WILL HELP", willHelp);
 					for (let willHelpUserId in willHelp) {
 						let w = willHelp[willHelpUserId];
-						seq.push(helpUser(willHelpUserId, w.base, w.html, w.language, w.supervise === true));
+						seq.push(helpUser(willHelpUserId, w.base, w.html, w.parameters, w.supervise === true));
 					}
 				}
 				return async.sequence_(...seq);
@@ -272,7 +288,7 @@ async.run([
 			}
 
 			if (r.help !== undefined) {
-				return helpUser(r.help.id, r.help.base, r.help.html, r.help.language, r.help.supervise === true);
+				return helpUser(r.help.id, r.help.base, r.help.html, convertDeprecated(r.help), r.help.supervise === true);
 			}
 			
 			if (r.validate !== undefined) {

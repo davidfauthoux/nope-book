@@ -231,7 +231,7 @@ async.run([
 					urlParameters = {};
 				}
 				if (event.language !== undefined) {
-					urlParameters.language = w.language;
+					urlParameters.language = event.language;
 				}
 				return urlParameters;
 			};

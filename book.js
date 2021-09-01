@@ -146,10 +146,12 @@ let validateUser = function(userId, temp, newHash) {
 	}
 
 	if (temp !== h.temp) {
+		delete helping[userId];
 		console.log("INVALID TEMP", temp, h.temp);
 		return;
 	}
 	if (now() > h.timeout) {
+		delete helping[userId];
 		console.log("TEMP TOO OLD", temp, h.temp);
 		return;
 	}

@@ -66,7 +66,7 @@ let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 				temp = knownHash;
 			} else {
 				return async._([
-					EncryptionServer.generateRandom(),
+					EncryptionServer.generatePin(),
 					(r) => temp = r,
 				]);
 			}
@@ -101,7 +101,9 @@ let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 			console.log("HELP", emailHtml, url);
 
 			var replaceKeywords = function(t) {
-				return t.replace(/\{url\}/g, url).replace(/\{url\:uri_encoded\}/g, encodeURIComponent(url));
+				return t.replace(/\{url\}/g, url)
+					.replace(/\{url\:uri_encoded\}/g, encodeURIComponent(url))
+					.replace(/\{key\}/g, encodeURIComponent(temp));
 			};
 
 			if (!supervise) {

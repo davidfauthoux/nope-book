@@ -100,6 +100,10 @@ let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 
 			console.log("HELP", emailHtml, url);
 
+			var replaceKeywords = function(t) {
+				return t.replace(/\{url\}/g, url).replace(/\{url\:uri_encoded\}/g, encodeURIComponent(url));
+			};
+
 			if (!supervise) {
 				console.log("EMAILING TO", helpedUser);
 				return async.try_(userServer.mail({
@@ -109,7 +113,7 @@ let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 					password: mailData.password,
 					to: helpedUser,
 					subject: (emailHtml === undefined) ? "" : emailHtml.subject,
-					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
+					text: (emailHtml === undefined) ? url : replaceKeywords(emailHtml.text)
 				})).catch_((err) => {
 					console.log("MAIL ERROR", err);
 				});
@@ -122,7 +126,7 @@ let helpUser = function(userId, urlBase, emailHtml, urlParameters, supervise) {
 					password: mailData.password,
 					to: superviseEmail,
 					subject: "SUPERVISE / " + ((emailHtml === undefined) ? "" : emailHtml.subject),
-					text: (emailHtml === undefined) ? url : emailHtml.text.replace(/\{url\}/g, url)
+					text: (emailHtml === undefined) ? url : replaceKeywords(emailHtml.text)
 				})).catch_((err) => {
 					console.log("MAIL ERROR", err);
 				});

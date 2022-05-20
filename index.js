@@ -5,7 +5,7 @@ import { EncryptionServer } from "../modules/encryption.js";
 window.addEventListener("load", function() {
 	let encryptionServer = new EncryptionServer();
 
-	let userId = "users/book/" + "superuser_"; //my_new_user_" + uuid();
+	let userId = "users/book/" + "superuser"; //my_new_user_" + uuid();
 	let password = "abc";
 	let userData = "david.fauthoux@gmail.com";
 	console.log(userId, password);
@@ -15,6 +15,8 @@ window.addEventListener("load", function() {
 	let exposePasswordHash;
 	let passwordHash;
 
+	//TODO rm [ in async._([
+
 	async.run([
 		EncryptionServer.hash(exposePassword),
 		(hash) => { exposePasswordHash = hash },
@@ -23,31 +25,35 @@ window.addEventListener("load", function() {
 		() => encryptionServer.cleanUser(userId),
 		() => encryptionServer.cleanUser(),
 		() => encryptionServer.userExists(userId),
-		(pub) => console.log("USER == ", pub),
-		// () => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
-		// () => console.log("USER CREATED"),
-		// encryptionServer.clearUser(userId),
-		// () => console.log("USER CLEARED"),
-		// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
-		// () => console.log("USER RECOVERING"),
+		(exists) => {
+			if (!exists) {
+				return async._(
+					() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
+					() => console.log("USER CREATED"),
+					// encryptionServer.clearUser(userId),
+					// () => console.log("USER CLEARED"),
+					// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
+					// () => console.log("USER RECOVERING"),
+				);
+			}
+		},
+
+		() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
+		() => {
+			let h = history(encryptionServer);
+			return async.while_(() => true).do_([
+				async.sleep(1),
+				h,
+				(e) => console.log("OK", e),
+				encryptionServer.stack({
+					from: userId,
+					to: userId,
+					ping: "ping"
+				})
+			]);
+		}
 	]);
 
-	// async.run([
-	// 	EncryptionServer.hash(exposePassword),
-	// 	(hash) => { exposePasswordHash = hash },
-	// 	EncryptionServer.hash(password),
-	// 	(hash) => { passwordHash = hash },
-	// 	() => console.log(":", exposePasswordHash, "/", passwordHash),
-	// 	() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
-	// 	() => {
-	// 		let h = history(encryptionServer);
-	// 		return async.while_(() => true).do_([
-	// 			async.sleep(1),
-	// 			h,
-	// 			(e) => console.log("OK", e),
-	// 		]);
-	// 	}
-	// ]);
 
 		// 			return sequence_(
 	// 				while_(true_())

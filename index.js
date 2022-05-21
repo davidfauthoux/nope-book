@@ -15,44 +15,44 @@ window.addEventListener("load", function() {
 	let exposePasswordHash;
 	let passwordHash;
 
-	//TODO rm [ in async._([
-
-	async.run([
-		EncryptionServer.hash(exposePassword),
-		(hash) => { exposePasswordHash = hash },
-		EncryptionServer.hash(password),
-		(hash) => { passwordHash = hash },
-		() => encryptionServer.cleanUser(userId),
-		() => encryptionServer.cleanUser(),
-		() => encryptionServer.userExists(userId),
-		(exists) => {
-			if (!exists) {
-				return async._(
-					() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
-					() => console.log("USER CREATED"),
-					// encryptionServer.clearUser(userId),
-					// () => console.log("USER CLEARED"),
-					// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
-					// () => console.log("USER RECOVERING"),
-				);
-			}
-		},
+	async.run(
+		EncryptionServer.hash(exposePassword), (_) => { exposePasswordHash = _ },
+		EncryptionServer.hash(password), (_) => { passwordHash = _ },
+		encryptionServer.cleanUser(userId),
+		encryptionServer.cleanUser(),
+		async.if_(encryptionServer.userExists(userId)).else_(
+			() => console.log("CREATING USER"),
+			() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
+			() => console.log("USER CREATED"),
+			// encryptionServer.clearUser(userId),
+			// () => console.log("USER CLEARED"),
+			// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
+			// () => console.log("USER RECOVERING"),
+		),
 
 		() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
+		() => console.log("USER LOADED"),
 		() => {
-			let h = history(encryptionServer);
-			return async.while_(() => true).do_([
-				async.sleep(1),
-				h,
-				(e) => console.log("OK", e),
-				encryptionServer.stack({
-					from: userId,
-					to: userId,
-					ping: "ping"
-				})
-			]);
-		}
-	]);
+			async.run(
+				async.while_(true).do_(
+					// async.sleep(1),
+					history(encryptionServer),
+					(e) => console.log("==> ", e),
+				),
+			);
+			async.run(
+				async.while_(true).do_(
+					async.sleep(2),
+					() => console.log("STACKING"),
+					encryptionServer.stack({
+						from: userId,
+						to: userId,
+						ping: "ping"
+					}),
+				),
+			);
+		},
+	);
 
 
 		// 			return sequence_(

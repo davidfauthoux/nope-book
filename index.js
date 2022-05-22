@@ -15,6 +15,9 @@ window.addEventListener("load", function() {
 	let exposePasswordHash;
 	let passwordHash;
 
+	let loopHistory = 0;
+	let loopStack = 0;
+
 	async.run(
 		EncryptionServer.hash(exposePassword), (_) => { exposePasswordHash = _ },
 		EncryptionServer.hash(password), (_) => { passwordHash = _ },
@@ -32,26 +35,25 @@ window.addEventListener("load", function() {
 
 		() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
 		() => console.log("USER LOADED"),
-		() => {
-			async.run(
-				async.while_(true).do_(
-					// async.sleep(1),
-					history(encryptionServer),
-					(e) => console.log("==> ", e),
-				),
-			);
-			async.run(
-				async.while_(true).do_(
-					async.sleep(2),
-					() => console.log("STACKING"),
-					encryptionServer.stack({
-						from: userId,
-						to: userId,
-						ping: "ping"
-					}),
-				),
-			);
-		},
+		() => async.parallel(
+			async.while_(() => loopHistory < 3).do_(
+				// async.sleep(1),
+				history(encryptionServer),
+				(e) => console.log(loopHistory, " ==> ", e),
+				() => loopHistory++,
+			),
+			async.while_(() => loopStack < 5).do_(
+				async.sleep(2),
+				() => console.log("STACKING ", loopStack),
+				encryptionServer.stack({
+					from: userId,
+					to: userId,
+					ping: "ping"
+				}),
+				() => loopStack++,
+			),
+		),
+		() => console.log("DONE"),
 	);
 
 

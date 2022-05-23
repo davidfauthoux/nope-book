@@ -23,36 +23,48 @@ window.addEventListener("load", function() {
 		EncryptionServer.hash(password), (_) => { passwordHash = _ },
 		encryptionServer.cleanUser(userId),
 		encryptionServer.cleanUser(),
-		async.if_(encryptionServer.userExists(userId)).else_(
-			() => console.log("CREATING USER"),
-			() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
-			() => console.log("USER CREATED"),
-			// encryptionServer.clearUser(userId),
-			// () => console.log("USER CLEARED"),
-			// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
-			// () => console.log("USER RECOVERING"),
-		),
+		{
+			if: encryptionServer.userExists(userId),
+			else: [
+				() => console.log("CREATING USER"),
+				() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
+				() => console.log("USER CREATED"),
+				// encryptionServer.clearUser(userId),
+				// () => console.log("USER CLEARED"),
+				// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
+				// () => console.log("USER RECOVERING"),
+			],
+		},
 
 		() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
 		() => console.log("USER LOADED"),
-		() => async.parallel(
-			async.while_(() => loopHistory < 3).do_(
-				// async.sleep(1),
-				history(encryptionServer),
-				(e) => console.log(loopHistory, " ==> ", e),
-				() => loopHistory++,
-			),
-			async.while_(() => loopStack < 5).do_(
-				async.sleep(2),
-				() => console.log("STACKING ", loopStack),
-				encryptionServer.stack({
-					from: userId,
-					to: userId,
-					ping: "ping"
-				}),
-				() => loopStack++,
-			),
-		),
+		() => [
+			{
+				thread: {
+					while: () => loopHistory < 3,
+					do: [
+						history(encryptionServer),
+						(e) => console.log(loopHistory, " ==> ", e),
+						() => loopHistory++,
+					],
+				},
+			},
+			{
+				thread: {
+					while: () => loopStack < 5,
+					do: [
+						{ sleep: 2 },
+						() => console.log("STACKING ", loopStack),
+						encryptionServer.stack({
+							from: userId,
+							to: userId,
+							ping: "ping"
+						}),
+						() => loopStack++,
+					],
+				},
+			},
+		],
 		() => console.log("DONE"),
 	);
 

@@ -2,67 +2,473 @@ import * as async from "../modules/async.js";
 import { Server, uuid, history } from "../modules/server.js";
 import { EncryptionServer } from "../modules/encryption.js";
 
-window.addEventListener("load", function() {
-	let encryptionServer = new EncryptionServer();
+class Book {
+	constructor() {
+		this.knownUsers = {};
+		this.helping = {};
 
-	let userId = "users/book/" + "superuser"; //my_new_user_" + uuid();
-	let password = "abc";
-	let userData = "david.fauthoux@gmail.com";
-	console.log(userId, password);
+		this.exposeTimeout = 5 * 60;
+		this.recoverTimeout = 15 * 60;
 
-	let exposePassword = "abc";
+		this.supervise = true;
+		this.superviseEmail = "david.fauthoux@gmail.com";
+		this.emailUser = "david.fauthoux@gmail.com";
+		this.emailPassword = "";
+		this.emailHost = "ssl0.ovh.net"; //"smtp.gmail.com"
+		this.emailPort = 587;
 
-	let exposePasswordHash;
-	let passwordHash;
+		this.baseUrl = "http://localhost:8088/";
 
-	let loopHistory = 0;
-	let loopStack = 0;
+		this.encryptionServer = new EncryptionServer();
 
-	async.run(
-		EncryptionServer.hash(exposePassword), (_) => { exposePasswordHash = _ },
-		EncryptionServer.hash(password), (_) => { passwordHash = _ },
-		encryptionServer.cleanUser(userId),
-		encryptionServer.cleanUser(),
-		{
-			if: encryptionServer.userExists(userId),
-			else: [
-				() => console.log("CREATING USER"),
-				() => encryptionServer.createNewUser(userId, passwordHash, userData, exposePasswordHash),
-				() => console.log("USER CREATED"),
-				// encryptionServer.clearUser(userId),
-				// () => console.log("USER CLEARED"),
-				// encryptionServer.recoverUser(userId, { subject: "NO SUBJECT", text: "CLICK {url}" }, true),
-				// () => console.log("USER RECOVERING"),
-			],
-		},
+		this.superuserUserId = "users/book/" + "superuser"; //my_new_user_" + uuid();
+		this.superuserPassword = "abc";
+		this.superuserData = "david.fauthoux@gmail.com";
+	
+		this.exposePassword = "abc";
+	}
 
-		() => encryptionServer.loadUser(userId, passwordHash, undefined, exposePasswordHash),
-		() => console.log("USER LOADED"),
-		() => [
+	static now() {
+		return new Date().getTime() / 1000.;
+	}
+
+	load() {
+		let exposePasswordHash;
+		let passwordHash;
+		return [
+			EncryptionServer.hash(this.exposePassword), (_) => { exposePasswordHash = _ },
+			EncryptionServer.hash(this.superuserPassword), (_) => { passwordHash = _ },
+			this.encryptionServer.cleanUser(this.superuserUserId),
+			this.encryptionServer.clearUser(),
 			{
-				thread: {
-					while: () => loopHistory < 3,
-					do: [
-						history(encryptionServer),
-						(e) => console.log(loopHistory, " ==> ", e),
-						() => loopHistory++,
-					],
-				},
+				if: this.encryptionServer.userExists(this.superuserUserId),
+				else: [
+					() => console.log("CREATING SUPERUSER"),
+					() => this.encryptionServer.createNewUser(this.superuserUserId, passwordHash, this.superuserData, exposePasswordHash),
+					() => console.log("SUPERUSER CREATED"),
+				],
 			},
+
+			() => this.encryptionServer.loadUser(this.superuserUserId, passwordHash, undefined, exposePasswordHash),
+			() => console.log("SUPERUSER LOADED"),
+		];
+	}
+	
+	newUser(userId, hash) {
+		if (this.knownUsers[userId] !== undefined) {
+			console.log("COULD NOT CREATE NEW USER, ALREADY EXISTS", userId);
+			return;
+		}
+		this.knownUsers[userId] = hash;
+		console.log("NEW USER", userId, hash);
+	}
+
+	helpUser(title, userId, emailHtml, supervise) {
+		let knownHash = this.knownUsers[userId];
+		if (knownHash === undefined) {
+			console.log("UNKNOWN USER", userId);
+			return;
+		}
+
+		let s = new Server("/" + userId);
+
+		console.log("KNOWN USER", userId, knownHash);
+
+		let temp;
+		let secret;
+
+		return [
+			() => {
+				if (!supervise) {
+					return [
+						EncryptionServer.generateRandom(),
+						(_) => { temp = _ },
+					];
+				} else {
+					temp = knownHash;
+				}
+			},
+			() => s.download("secret-" + knownHash), (_) => { secret = _ },
+			() => s.download("data-" + secret),
+			(data) => {
+				// let helpedUser = dataContentsHeap.get();
+				// if (helpedUser === null) {
+				// 	console.log("DEPRECATED USER", userId, knownHash);
+				// 	return;
+				// }
+				console.log("HELPED USER", userId, knownHash, data);
+
+				this.helping[userId] = {
+					timeout: Book.now() + this.recoverTimeout,
+					temp: temp,
+				};
+
+				let url = this.baseUrl + "/" + userId.substring(0, userId.indexOf('/')) + "/?recover=" + encodeURIComponent(temp) + "&id=" + encodeURIComponent(userId);
+				if (supervise) {
+					url += "&supervise=" + encodeURIComponent("");
+				}
+
+				console.log("EMAIL:", data, temp, url);
+
+				if (emailHtml === undefined) {
+					emailHtml = {
+						subject: "NO SUBJECT",
+						text: "NO CONTENT\n{url}",
+					}
+				}
+
+				let subject = emailHtml.subject;
+				let text = emailHtml.text.replaceAll("{url}", url);
+
+				if (!supervise) {
+					return this.encryptionServer.mail({
+						host: this.emailHost,
+						port: this.emailPort,
+						user: this.emailUser,
+						password: this.emailPassword,
+						to: data,
+						subject: subject,
+						text: text,
+					});
+				} else {
+					return this.encryptionServer.mail({
+						host: this.emailHost,
+						port: this.emailPort,
+						user: this.emailUser,
+						password: this.emailPassword,
+						to: this.superviseEmail,
+						subject: "SUPERVISE / " + subject,
+						text: text,
+					});
+				}
+			},
+		];
+	};
+
+	validateUser(userId, temp, newHash, emailHtml) {
+		let h = this.helping[userId];
+
+		if (h === undefined) {
+			console.log("NOT HELPING", userId);
+			return;
+		}
+
+		if (temp !== h.temp) {
+			console.log("INVALID TEMP", temp, h.temp);
+			if (emailHtml === undefined) {
+				return;
+			}
+			return this.helpUser("RECOVER AGAIN (INVALID LINK)", userId, emailHtml, false);
+		}
+		if (Book.now() > h.timeout) {
+			console.log("TEMP TOO OLD", temp, h.temp);
+			if (emailHtml === undefined) {
+				return;
+			}
+			return this.helpUser("RECOVER AGAIN (OBSOLETE LINK)", userId, emailHtml, false);
+		}
+
+		let knownHash = this.knownUsers[userId];
+
+		let vault = new Server("/vault/" + userId);
+		let s = new Server("/" + userId);
+
+		let exposePasswordHash;
+		let secret;
+
+		return [
+			EncryptionServer.hash(exposePassword), (_) => { exposePasswordHash = _ },
+			() => s.download("secret-" + knownHash), (_) => { secret = _ },
+			() => vault.expose("private-" + secret, exposePasswordHash, temp, this.exposeTimeout),
+			() => vault.expose("private-encrypted-" + secret, exposePasswordHash, temp, this.exposeTimeout),
+			() => {
+				if (newHash !== knownHash) {
+					return [
+						() => s.upload("secret-" + newHash, secret),
+						() => s.delete("secret-" + knownHash),
+					];
+				}
+			},
+			() => s.download("data-" + secret),
+			(data) => {
+				console.log("EMAIL:", data, "VALIDATED");
+				return this.encryptionServer.stack({
+					from: this.superuserUserId,
+					to: this.superuserUserId,
+					validated: {
+						id: userId,
+						hash: newHash
+					}
+				});
+			},
+		];
+	}
+
+	validatedUser(userId, hash) {
+		if (hash === undefined) {
+			return;
+		}
+		this.knownUsers[userId] = hash;
+		delete this.helping[userId];
+		console.log("VALIDATED USER", userId, hash);
+	}
+
+	ping() {
+		return this.encryptionServer.stack({
+			from: this.superuserUserId,
+			to: this.superuserUserId,
+			ping: "pong",
+		});
+	}
+
+	run() {
+		return {
+			while: true,
+			do: [
+				history(this.encryptionServer),
+				(r) => {
+					if (r.old !== undefined) {
+						let seq = [];
+						for (let event of r.old) {
+							if (event.to !== this.superuserUserId) {
+								continue;
+							}
+
+							if (event.ping !== undefined) {
+								continue;
+							}
+
+							if (event.new !== undefined) {
+								delete willHelp[event.new.id];
+								seq.push(newUser(event.new.id, event.new.hash, event.new.html));
+								continue;
+							}		
+
+							if (event.validated !== undefined) {
+								delete willHelp[event.validated.id];
+								seq.push(validatedUser(event.validated.id, event.validated.hash));
+								continue;
+							}
+
+							if (event.help !== undefined) {
+								continue;
+							}
+
+							if (event.validate !== undefined) {
+								continue;
+							}		
+						}								
+						return seq;
+					}
+
+					if (r.to !== this.superuserUserId) {
+						console.log("IGNORED REGISTER ID", r.to, "EXPECTING", this.superuserUserId);
+						return;
+					}
+					
+					if (r.ping !== undefined) {
+						console.log("PING", r.ping);
+						return;
+					}
+
+					if (r.new !== undefined) {
+						return this.newUser(r.new.id, r.new.hash, r.new.html);
+					}
+
+					if (r.validated !== undefined) {
+						return this.validatedUser(r.validated.id, r.validated.hash);
+					}
+
+					if (r.help !== undefined) {
+						return this.helpUser("RECOVER/VALIDATE EMAIL", r.help.id, r.help.html, r.help.supervise);
+					}
+					
+					if (r.validate !== undefined) {
+						return this.validateUser(r.validate.id, r.validate.temp, r.validate.hash, r.validate.html);
+					}
+				},
+			],
+		};
+	}
+}
+
+class BookClient {
+	// data == email
+	constructor(userId, password, data) {
+		this.bookSuperuserUserId = "users/book/" + "superuser";
+
+		this.encryptionServer = new EncryptionServer();
+		this.urlBase = "HTTP://BASE/";
+
+		this.userId = userId;
+		this.password = password;
+		this.data = data;
+
+		this.supervise = true;
+		this.exposePassword = password; // Providing a password reduces the security level because a .expose file will be created
+	}
+
+	_new(passwordHash) {
+		return this.encryptionServer.stack({
+			to: this.bookSuperuserUserId,
+			new: {
+				id: this.userId,
+				hash: passwordHash,
+			}
+		});
+	}
+
+	_recover() {
+		return this.encryptionServer.stack({
+			to: this.bookSuperuserUserId,
+			help: {
+				id: this.userId,
+				base: this.urlBase,
+				html: {
+					subject: "RECOVER",
+					text: "CLICK {url}",
+				},
+				parameters: {},
+				supervise: this.supervise,
+			}
+		});
+	}
+
+	clear() {
+		return [
+			this.encryptionServer.cleanUser(this.superuserUserId),
+			this.encryptionServer.clearUser(),
+		];
+	}
+
+	load() {
+		let passwordHash;
+		return [
+			{
+				try: [
+					() => this.encryptionServer.retreiveUser(this.userId),
+					() => this.encryptionServer.loadUser(this.userId, undefined, undefined, undefined),
+					true,
+				],
+				catch: (e) => [
+					() => console.log("USER NOT RETREIVED"),
+					this.encryptionServer.cleanUser(this.userId),
+					this.encryptionServer.clearUser(),
+					{
+						if: this.encryptionServer.userExists(this.userId),
+						then: [
+							() => console.log("USER EXISTS", this.userId),
+							() => {
+								if (this.password === undefined) {
+									return [
+										this._recover(),
+										() => console.log("USER RECOVERING"),
+										false,
+									];
+								} else {
+									return [
+										() => console.log("LOADING USER WITH PASSWORD", this.password),
+										EncryptionServer.hash(this.password), (_) => { passwordHash = _ },
+										() => this.encryptionServer.loadUser(this.userId, passwordHash, undefined, this.exposePassword),
+										true,
+									];
+								}
+							},
+						],
+						else: [
+							() => console.log("CREATING USER"),
+							EncryptionServer.hash(this.password), (_) => { passwordHash = _ },
+							() => this.encryptionServer.createNewUser(this.userId, passwordHash, this.data, this.exposePassword),
+							() => this._new(passwordHash),
+							() => console.log("USER CREATED"),
+							() => this._recover(),
+							() => console.log("USER RECOVERING"),
+							false,
+						],
+					},
+				],
+			}
+		];
+	}
+	
+	recover(password, tempPassword) {
+		let waitTime = 1;
+		let count = 0;
+		let getSleepTime = () => {
+			count++;
+			if (count === 5) {
+				throw e;
+			}
+			let t = waitTime;
+			waitTime = Math.min(30, waitTime * 2);
+			return t;
+		};
+
+		return [
+			() => {
+				if (supervise) {
+					return tempPassword;
+				}
+				if (password === undefined) {
+					return [
+						EncryptionServer.generateRandom(),
+						(r) => EncryptionServer.hash(r),
+					];
+				} else {
+					return EncryptionServer.hash(password)
+				}
+			},
+			(passwordHash) => {
+				return [
+					this.bookServer.stack({
+						to: this.bookSuperuserUserId,
+						validate: {
+							id: this.userId,
+							temp: tempPassword,
+							hash: passwordHash,
+						}
+					}),
+					{
+						while: () => this.bookServer.user === undefined,
+						do: {
+							try: this.bookServer.loadUser(userId, passwordHash, tempPassword, undefined),
+							catch: (e) => {
+								console.log("ERROR", e);
+								return { sleep: getSleepTime() };
+							},
+						},
+					},
+				];
+			},
+		];
+	}
+}
+
+window.addEventListener("load", function() {
+	let book = new Book();
+	let bookClient = new BookClient("users/welcome/dav", "pass", "david.fauthoux+toto@gmail.com");
+
+	let loopStack = 0;
+	async.run(
+		book.load(),
+		() => [
+			{ thread: book.run() },
 			{
 				thread: {
 					while: () => loopStack < 5,
 					do: [
 						{ sleep: 2 },
-						() => console.log("STACKING ", loopStack),
-						encryptionServer.stack({
-							from: userId,
-							to: userId,
-							ping: "ping"
-						}),
+						() => console.log("PINGING", loopStack),
+						book.ping(),
 						() => loopStack++,
 					],
 				},
+			},
+			{
+				thread: [
+					bookClient.load(),
+					(result) => console.log("CLIENT LOADED", result), // true if no need to recover
+				]
 			},
 		],
 		() => console.log("DONE"),

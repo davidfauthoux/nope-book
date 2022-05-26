@@ -1,3 +1,11 @@
+// npm install googleapis@39 --save
+// npm install nodemailer
+
+// node auth.js
+// EXTRACT code=<TOKENN>
+// echo '<TOKEN>' | node token.js
+// echo -e "david.fauthoux@gmail.com\nSUB\nTEXT\n\n<div style='color:red;'>RED TEXT</div>" | node gmail-send.js
+
 const fs = require("fs");
 const path = require("path");
 const sendMail = require("./gmail");

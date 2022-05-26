@@ -1,5 +1,3 @@
-// gmail.js
-
 const { google } = require("googleapis");
 const MailComposer = require("nodemailer/lib/mail-composer");
 const credentials = require("./gmail-davfxx-credentials.json");

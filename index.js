@@ -12,20 +12,24 @@ class Book {
 
 		this.supervise = true;
 		this.superviseEmail = "david.fauthoux@gmail.com";
-		this.emailUser = "david.fauthoux@gmail.com";
-		this.emailPassword = "";
-		this.emailHost = "ssl0.ovh.net"; //"smtp.gmail.com"
-		this.emailPort = 587;
 
 		this.baseUrl = "http://localhost:8088/";
 
 		this.encryptionServer = new EncryptionServer();
 
-		this.superuserUserId = "users/book/" + "superuser"; //my_new_user_" + uuid();
+		this.superuserUserId = "users/book/superuser";
 		this.superuserPassword = "abc";
 		this.superuserData = "david.fauthoux@gmail.com";
 	
 		this.exposePassword = "abc";
+	}
+
+	mail(address, subject, text, html) {
+		if (supervise) {
+			address = this.superviseEmail;
+			subject = "SUPERVISE / " + subject;
+		}
+		console.log("EMAIL:", address, subject, text, html);
 	}
 
 	static now() {
@@ -63,7 +67,7 @@ class Book {
 		console.log("NEW USER", userId, hash);
 	}
 
-	helpUser(title, userId, emailHtml, supervise) {
+	helpUser(title, userId, email, supervise) {
 		let knownHash = this.knownUsers[userId];
 		if (knownHash === undefined) {
 			console.log("UNKNOWN USER", userId);
@@ -108,44 +112,24 @@ class Book {
 					url += "&supervise=" + encodeURIComponent("");
 				}
 
-				console.log("EMAIL:", data, temp, url);
-
-				if (emailHtml === undefined) {
-					emailHtml = {
+				if (email === undefined) {
+					email = {
 						subject: "NO SUBJECT",
 						text: "NO CONTENT\n{url}",
+						html: "<div>NO CONTENT\n{url}</div>",
 					}
 				}
 
-				let subject = emailHtml.subject;
-				let text = emailHtml.text.replaceAll("{url}", url);
+				let subject = email.subject;
+				let text = email.text.replaceAll("{url}", url);
+				let html = email.html.replaceAll("{url}", url);
 
-				if (!supervise) {
-					return this.encryptionServer.mail({
-						host: this.emailHost,
-						port: this.emailPort,
-						user: this.emailUser,
-						password: this.emailPassword,
-						to: data,
-						subject: subject,
-						text: text,
-					});
-				} else {
-					return this.encryptionServer.mail({
-						host: this.emailHost,
-						port: this.emailPort,
-						user: this.emailUser,
-						password: this.emailPassword,
-						to: this.superviseEmail,
-						subject: "SUPERVISE / " + subject,
-						text: text,
-					});
-				}
+				return this.mail(data, subject, text, html);
 			},
 		];
 	};
 
-	validateUser(userId, temp, newHash, emailHtml) {
+	validateUser(userId, temp, newHash, email) {
 		let h = this.helping[userId];
 
 		if (h === undefined) {
@@ -155,17 +139,11 @@ class Book {
 
 		if (temp !== h.temp) {
 			console.log("INVALID TEMP", temp, h.temp);
-			if (emailHtml === undefined) {
-				return;
-			}
-			return this.helpUser("RECOVER AGAIN (INVALID LINK)", userId, emailHtml, false);
+			return this.helpUser("RECOVER AGAIN (INVALID LINK)", userId, email, false);
 		}
 		if (Book.now() > h.timeout) {
 			console.log("TEMP TOO OLD", temp, h.temp);
-			if (emailHtml === undefined) {
-				return;
-			}
-			return this.helpUser("RECOVER AGAIN (OBSOLETE LINK)", userId, emailHtml, false);
+			return this.helpUser("RECOVER AGAIN (OBSOLETE LINK)", userId, email, false);
 		}
 
 		let knownHash = this.knownUsers[userId];
@@ -240,7 +218,7 @@ class Book {
 
 							if (event.new !== undefined) {
 								delete willHelp[event.new.id];
-								seq.push(newUser(event.new.id, event.new.hash, event.new.html));
+								seq.push(newUser(event.new.id, event.new.hash, event.new.email));
 								continue;
 							}		
 
@@ -272,7 +250,7 @@ class Book {
 					}
 
 					if (r.new !== undefined) {
-						return this.newUser(r.new.id, r.new.hash, r.new.html);
+						return this.newUser(r.new.id, r.new.hash, r.new.email);
 					}
 
 					if (r.validated !== undefined) {
@@ -280,11 +258,11 @@ class Book {
 					}
 
 					if (r.help !== undefined) {
-						return this.helpUser("RECOVER/VALIDATE EMAIL", r.help.id, r.help.html, r.help.supervise);
+						return this.helpUser("RECOVER/VALIDATE EMAIL", r.help.id, r.help.email, r.help.supervise);
 					}
 					
 					if (r.validate !== undefined) {
-						return this.validateUser(r.validate.id, r.validate.temp, r.validate.hash, r.validate.html);
+						return this.validateUser(r.validate.id, r.validate.temp, r.validate.hash, r.validate.email);
 					}
 				},
 			],
@@ -324,9 +302,10 @@ class BookClient {
 			help: {
 				id: this.userId,
 				base: this.urlBase,
-				html: {
+				email: {
 					subject: "RECOVER",
 					text: "CLICK {url}",
+					html: "<div>CLICK {url}</div>",
 				},
 				parameters: {},
 				supervise: this.supervise,

@@ -1,13 +1,10 @@
 import * as async from "../modules/async.js";
-import { Server } from "../modules/server.js";
 import { BookClient } from "../modules/book.js";
 import * as fs from "fs";
 
-Server.BASE = "http://localhost:8086"
-
 // window.addEventListener("load", function() {
 // });
-let bookClient = new BookClient("users/welcome/dav", "pass", "david.fauthoux+toto@gmail.com");
+let bookClient = new BookClient("http://localhost:8086", "users/welcome/dav", "pass", "david.fauthoux+toto@gmail.com");
 let recoverKey = null;
 try {
 	recoverKey = fs.readFileSync("recover").toString().trim();
@@ -24,20 +21,53 @@ console.log(credentials);
 
 async.run(
 	() => {
-		if (credentials === undefined) {
-			return {
-				if: bookClient.exists(),
-				then: bookClient.recover("pass", recoverKey),
-			};
-		} else {
+		if (credentials !== undefined) {
 			return credentials;
 		}
+		if (recoverKey !== null) {
+			return bookClient.validate(recoverKey);
+		}
+		return {
+			if: bookClient.exists(),
+			then: [
+				bookClient.recover(),
+			],
+			else: [
+				bookClient.create(),
+			],
+		};
 	},
-	(credentials_) => bookClient.load(credentials_),
-	(credentials_) => {
-		if (credentials_ !== null) {
-			fs.writeFileSync("credentials", credentials_);
-			console.log("CLIENT LOADED", credentials_);
+	(ser) => {
+		if (ser !== null) {
+			return [
+				bookClient.load(ser),
+				() => fs.writeFileSync("credentials", ser),
+				() => console.log("CLIENT LOADED", ser),
+				() => [
+					{
+						thread: {
+							while: true,
+							do: [
+								bookClient.history.history(),
+								_ => console.log(_),
+							],
+						},
+					},
+					{
+						thread: {
+							while: true,
+							do: [
+								bookClient.history.stack({
+									ping: "pong",
+									from: bookClient.userId,
+									to: bookClient.userId,
+								}),
+								{ sleep: 1 },
+							],
+						},
+					},
+				],
+			];
 		}
 	},
 );

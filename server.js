@@ -1,10 +1,7 @@
 import * as async from "../modules/async.js";
-import { Server } from "../modules/server.js";
 import { Book } from "../modules/book.js";
 
-Server.BASE = "http://localhost:8086"
-
-let book = new Book();
+let book = new Book("http://localhost:8086");
 
 async.run(
 	book.load(),

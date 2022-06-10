@@ -10,8 +10,10 @@ export function launch() {
 		return v;
 	};
 	let recoverKey = getParam("recover");
-	let id = Book.userId(getParam("id"));
-	let password = getParam("password");
+	let path = window.location.pathname.substring("/".length);
+	let app = path.subsring(0, path.indexOf('/'));
+	let id = Book.userId(app + "/" + getParam("u"));
+	let password = getParam("p");
 	let email = getParam("email");
 	let clear = getParam("clear");
 

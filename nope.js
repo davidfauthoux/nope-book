@@ -11,7 +11,7 @@ export function launch() {
 	};
 	let recoverKey = getParam("recover");
 	let path = window.location.pathname.substring("/".length);
-	let app = path.subsring(0, path.indexOf('/'));
+	let app = path.substring(0, path.indexOf('/'));
 	let id = Book.userId(app + "/" + getParam("u"));
 	let password = getParam("p");
 	let email = getParam("email");

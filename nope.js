@@ -1,7 +1,12 @@
 import { Book, BookClient } from "../modules/book.js";
 
-export function launch() {
-	let url = new URL(window.location.href);
+export function launch(baseUrl) {
+	let url;
+	if (baseUrl === undefined) {
+		url = new URL(window.location.href);
+	} else {
+		url = new URL(baseUrl);
+	}
 	let getParam = (k) => {
 		let v = url.searchParams.get(k);
 		if (v === null) {
@@ -17,26 +22,28 @@ export function launch() {
 	let email = getParam("email");
 	let clear = getParam("clear");
 
-	let rebuildUrl = () => {
-		let a = "";
-		for (let k of url.searchParams.keys()) {
-			if (k === "recover") {
-				continue;
+	if (baseUrl === undefined) {
+		let rebuildUrl = () => {
+			let a = "";
+			for (let k of url.searchParams.keys()) {
+				if (k === "recover") {
+					continue;
+				}
+				if (k === "clear") {
+					continue;
+				}
+				if (a === "") {
+					a += "?";
+				} else {
+					a += "&";
+				}
+				a += k + "=" + url.searchParams.get(k);
 			}
-			if (k === "clear") {
-				continue;
-			}
-			if (a === "") {
-				a += "?";
-			} else {
-				a += "&";
-			}
-			a += k + "=" + url.searchParams.get(k);
-		}
-		return url.protocol + "//" + url.host + url.pathname + a + url.hash;
-	};
+			return url.protocol + "//" + url.host + url.pathname + a + url.hash;
+		};
 
-	window.history.pushState("", "", rebuildUrl());
+		window.history.pushState("", "", rebuildUrl());
+	}
 
 	let book = new BookClient(url.protocol + "//" + url.host, id, password, email, window.location.href);
 
